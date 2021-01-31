@@ -13,16 +13,16 @@ class RPG(commands.Cog):
     @commands.group(name='rpg', invoke_without_command=True)
     async def rpg(self, ctx):
         """Base command for all RPG commands. Shows status of Character"""
-        pass
+        raise NotImplementedError()
 
     @rpg.command(name='setup')
     async def rpg_setup_character(self, ctx):
         """Creates a new character if the user does not already have one."""
-        check = await self.cdb.find_one({'owner': ctx.author})
+        check = await self.cdb.find_one({'owner': ctx.author.id})
         if check is not None:
             return await ctx.send('You already have a character!')
 
-        char_name = ctx.prompt('Character Name', 'What would you like your character to be called?')
+        char_name = await ctx.prompt('Character Name', 'What would you like your character to be called?')
 
         new_char = Character.new(ctx.author, char_name)
         await new_char.commit(self.cdb)

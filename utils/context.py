@@ -36,9 +36,14 @@ class PoddoContext(commands.Context):
         embed = create_default_embed(self)
         embed.title = title or 'Question Prompt'
 
-        if not embed.description:
-            raise commands.MissingRequiredArgument('Missing description argument on prompt.')
+        if not description:
+            raise Exception('Missing required argument Description on prompt.')
         embed.description = description
+
+        if sendable:
+            question = await sendable.send(embed=embed)
+        else:
+            question = await self.channel.send(embed=embed)
 
         def check(msg: discord.Message):
             return msg.author.id == self.author.id and msg.channel.id == self.channel.id
@@ -49,6 +54,7 @@ class PoddoContext(commands.Context):
             return None
 
         content = result.content
+        await try_delete(question)
         await try_delete(result)
 
         return content or None

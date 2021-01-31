@@ -85,7 +85,7 @@ class Character:
         List of character's armor items.
         :return: list[Armor]
         """
-        return self.armor
+        return self._armor
 
     @property
     def armor_value(self):
@@ -100,7 +100,7 @@ class Character:
 
     @property
     def weapons(self):
-        return self.weapons
+        return self._weapons
 
     @property
     def damage_value(self):
