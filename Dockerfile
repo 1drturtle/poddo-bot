@@ -5,6 +5,9 @@ RUN apt install procinfo
 
 WORKDIR /podda
 
-COPY . .
+ADD ./requirements.txt /podda/requirements.txt
 RUN pip install -r requirements.txt
-CMD ["python", "bot.py"]
+
+ADD . /podda
+
+ENTRYPOINT ["python", "bot.py"]

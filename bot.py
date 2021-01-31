@@ -8,9 +8,10 @@ from discord.ext import commands
 
 import config
 from utils.context import PoddoContext
+from utils.functions import *
 
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] %(name)s: %(message)s'))
+handler.setFormatter(logging.Formatter('[{asctime}] [{levelname}] | {name}: {message}', style='{'))
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(handler)
@@ -21,7 +22,7 @@ logging.getLogger('discord.client').setLevel(logging.WARNING)
 
 log = logging.getLogger(__name__)
 
-COGS = {}
+COGS = {'jishaku', 'cogs.rpg_commands'}
 
 
 async def get_prefix(client, message):
@@ -82,7 +83,7 @@ bot = PoddoBot(desc=description, intents=intents, allowed_mentions=discord.Allow
 @bot.event
 async def on_ready():
 
-    bot.ready_time = datetime.utcnow()
+    bot.ready_time = datetime.datetime.utcnow()
 
     ready_message = f'\n{"-"*25}\n' \
                     f'Bot Ready!\n' \
@@ -103,6 +104,7 @@ async def on_message(message):
     context = await bot.get_context(message)
     if context.command is not None:
         return await bot.invoke(context)
+
 
 @bot.event
 async def on_command(ctx):
