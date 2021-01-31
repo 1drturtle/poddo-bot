@@ -18,6 +18,12 @@ class Item:
     def from_dict(cls, data):
         return cls(**data)
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f'<Item name={self.name}>'
+
 
 class Armor(Item):
     def __init__(self, name: str, defense: int):
@@ -34,6 +40,12 @@ class Armor(Item):
             'defense': self.defense
         })
 
+    def __str__(self):
+        return f'{self.name} ({self.defense} DEF)'
+
+    def __repr__(self):
+        return f'<Armor name={self.name}, defense={self.defense}>'
+
 
 class Weapon(Item):
     def __init__(self, name, damage):
@@ -41,14 +53,20 @@ class Weapon(Item):
         super(Weapon, self).__init__(name=name)
 
     @property
-    def defense(self):
-        return self.defense
+    def damage(self):
+        return self._damage
 
     def to_dict(self):
         d = super(Weapon, self).to_dict()
         d.update({
             'damage': self.damage
         })
+
+    def __str__(self):
+        return f'{self.name} ({self.damage} DMG)'
+
+    def __repr__(self):
+        return f'<Weapon name={self.name}, damage={self.damage}>'
 
 
 class Character:
@@ -154,3 +172,10 @@ class Character:
             {'$set': self.to_dict()},
             upsert=True
         )
+
+    def __str__(self):
+        return f'{self.name}: {self.exp} EXP'
+
+    def __repr__(self):
+        return f'<Character owner_id={self.owner_id}, name={self.name}, exp={self.exp},' \
+               f' armor={repr(self.armor)}, weapons={repr(self.weapons)}>'
