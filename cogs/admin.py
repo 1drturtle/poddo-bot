@@ -51,7 +51,7 @@ class Admin(commands.Cog):
                 else:
                     prefix = BOT_PREFIX
                 self.bot.prefixes[guild_id] = prefix
-            return await ctx.send(f'No prefix specified to Change. Current Prefix: `{prefix}`')
+            return await ctx.send(f'No prefix specified to change. Current Prefix: `{prefix}`')
         else:
             await ctx.bot.mdb['prefixes'].update_one({'guild_id': guild_id},
                                                      {'$set': {'prefix': to_change}}, upsert=True)

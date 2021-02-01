@@ -1,6 +1,6 @@
 import discord
 from datetime import datetime
-__all__ = ('try_delete', 'create_default_embed')
+__all__ = ('try_delete', 'create_default_embed', 'yes_or_no')
 
 
 async def try_delete(message):
@@ -17,3 +17,12 @@ def create_default_embed(ctx, **options) -> discord.Embed:
     embed.set_footer(text=bot.user.name, icon_url=str(bot.user.avatar_url))
     embed.timestamp = datetime.utcnow()
     return embed
+
+
+def yes_or_no(content):
+    if isinstance(content, bool):
+        return content
+    if str(content).lower() in ['yes', 'y', 'true', 'on', '1']:
+        return True
+    if str(content.lower()) in ['no', 'n', 'false', 'off', '0']:
+        return False

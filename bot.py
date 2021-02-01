@@ -22,7 +22,11 @@ logging.getLogger('discord.client').setLevel(logging.WARNING)
 
 log = logging.getLogger(__name__)
 
-COGS = {'jishaku', 'cogs.rpg_commands'}
+COGS = {
+    'jishaku', 'cogs.admin', 'cogs.utils', 'cogs.code',
+    'cogs.rpg_commands',
+    'cogs.help'
+}
 
 
 async def get_prefix(client, message):
@@ -75,7 +79,7 @@ class PoddoBot(commands.Bot):
 
 intents = discord.Intents(guilds=True, members=True, messages=True, reactions=True)
 
-description = 'Bot made for The Gates D&D Server.'
+description = 'Dr Turtle\'s bot.'
 
 bot = PoddoBot(desc=description, intents=intents, allowed_mentions=discord.AllowedMentions.none())
 

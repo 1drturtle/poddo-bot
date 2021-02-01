@@ -3,6 +3,7 @@ version: '3'
 services:
   poddo-bot:
     image: poddo
+    restart: always
     build:
       context: .
     env_file:
