@@ -1,6 +1,11 @@
+import logging
+
 from discord.ext import commands
 
-from utils.functions import create_default_embed, yes_or_no
+from config import PREFIX as BOT_PREFIX
+from utils.functions import yes_or_no
+
+log = logging.getLogger(__name__)
 
 
 class Admin(commands.Cog):
@@ -23,6 +28,7 @@ class Admin(commands.Cog):
         """
         confirm = await ctx.prompt('Confirm', 'Are you sure you want to shutdown the bot?')
         if yes_or_no(confirm):
+            log.warning(f'Bot restart initiated by {ctx.author.name}')
             await self.bot.logout()
 
     @commands.command(name='prefix')
@@ -37,13 +43,13 @@ class Admin(commands.Cog):
         guild_id = str(ctx.guild.id)
         if to_change is None:
             if guild_id in self.bot.prefixes:
-                prefix = self.bot.prefixes.get(guild_id, self.bot.prefix)
+                prefix = self.bot.prefixes.get(guild_id, BOT_PREFIX)
             else:
                 dbsearch = await self.bot.mdb['prefixes'].find_one({'guild_id': guild_id})
                 if dbsearch is not None:
-                    prefix = dbsearch.get('prefix', self.bot.prefix)
+                    prefix = dbsearch.get('prefix', BOT_PREFIX)
                 else:
-                    prefix = self.bot.prefix
+                    prefix = BOT_PREFIX
                 self.bot.prefixes[guild_id] = prefix
             return await ctx.send(f'No prefix specified to Change. Current Prefix: `{prefix}`')
         else:
