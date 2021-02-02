@@ -48,6 +48,8 @@ class HelpBotMenu(menus.ListPageSource):
 def generate_command_names(command_list, short_doc=False):
     out = []
     for command in command_list:
+        if command.hidden:
+            continue
         parent = (command.full_parent_name + " ") if command.full_parent_name else ""
         name = f'`{parent}{command.name}`'
         if isinstance(command, commands.Group) and len(command.commands):

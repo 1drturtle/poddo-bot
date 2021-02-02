@@ -1,9 +1,13 @@
+import io
 import logging
+import textwrap
+import traceback
+from contextlib import redirect_stdout
 
+import discord
 from discord.ext import commands
 
-from config import PREFIX as BOT_PREFIX
-from utils.functions import yes_or_no
+from utils.functions import yes_or_no, create_default_embed
 
 log = logging.getLogger(__name__)
 
@@ -11,9 +15,12 @@ log = logging.getLogger(__name__)
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self._last_result = None
+
+    async def cog_check(self, ctx):
+        return await self.bot.is_owner(ctx.author)
 
     @commands.group(name='admin', invoke_without_command=True)
-    @commands.is_owner()
     async def admin(self, ctx):
         """
         Owner-only commands for the bot.
@@ -21,7 +28,6 @@ class Admin(commands.Cog):
         return await ctx.send('nope.')
 
     @admin.command(name="restart")
-    @commands.is_owner()
     async def restart(self, ctx):
         """
         Restarts the bot.
@@ -31,32 +37,89 @@ class Admin(commands.Cog):
             log.warning(f'Bot restart initiated by {ctx.author.name}')
             await self.bot.logout()
 
-    @commands.command(name='prefix')
-    @commands.check_any(commands.has_guild_permissions(manage_guild=True), commands.is_owner())
-    @commands.guild_only()
-    async def change_prefix(self, ctx, to_change: str = None):
+    # Eval Code
+    def cleanup_code(self, content):
+        """Automatically removes code blocks from the code."""
+        # remove ```py\n```
+        if content.startswith('```') and content.endswith('```'):
+            return '\n'.join(content.split('\n')[1:-1])
+
+    def embed_split(self, embed, body, color, title='Embed Result'):
+        embed.colour = color
+        body = body if body is not None else "None"
+        error_str = f'```py\n{body}\n```'
+        if len(error_str) >= 1010:
+            error_str = f'```py\n{body[:1010]} ...\n```'
+        embed.title = title
+        embed.add_field(name='\u200b', value=error_str)
+        return embed
+
+    @admin.command(name='eval')
+    async def eval(self, ctx, *, body: str):
         """
-        Changes the prefix for the current guild.
-        Can only be ran in a guild. If no prefix is specified, will show the current prefix.
-        Requires Manage Server permissions.
+        Evaluates input
         """
-        guild_id = str(ctx.guild.id)
-        if to_change is None:
-            if guild_id in self.bot.prefixes:
-                prefix = self.bot.prefixes.get(guild_id, BOT_PREFIX)
-            else:
-                dbsearch = await self.bot.mdb['prefixes'].find_one({'guild_id': guild_id})
-                if dbsearch is not None:
-                    prefix = dbsearch.get('prefix', BOT_PREFIX)
-                else:
-                    prefix = BOT_PREFIX
-                self.bot.prefixes[guild_id] = prefix
-            return await ctx.send(f'No prefix specified to change. Current Prefix: `{prefix}`')
+        embed = create_default_embed(ctx)
+
+        env = {
+            'bot': self.bot,
+            'ctx': ctx,
+            'channel': ctx.channel,
+            'author': ctx.author,
+            'guild': ctx.guild,
+            'message': ctx.message,
+            '_': self._last_result
+        }
+
+        env.update(globals())
+
+        if not body.startswith('```'):
+            body = f'```py\n' \
+                   f'{body}\n' \
+                   f'```'
+        body = self.cleanup_code(body)
+        stdout = io.StringIO()
+
+        to_compile = f'async def func():\n{textwrap.indent(body, "  ")}'
+
+        try:
+            exec(to_compile, env)
+            print(repr(env['func']))
+        except Exception as e:
+            return await ctx.send(embed=self.embed_split(embed, f'{e.__class__.__name__}: {str(e)}',
+                                                         discord.Colour.red(), title='Eval Compile Error'))
+        func = env['func']
+        try:
+            with redirect_stdout(stdout):
+                ret = await func()
+        except Exception as e:
+            value = stdout.getvalue()
+            return await ctx.send(embed=self.embed_split(
+                embed,
+                f'{value}{traceback.format_exc()}',
+                discord.Colour.red(),
+                title='Error during Eval'
+            ))
         else:
-            await ctx.bot.mdb['prefixes'].update_one({'guild_id': guild_id},
-                                                     {'$set': {'prefix': to_change}}, upsert=True)
-            ctx.bot.prefixes[guild_id] = to_change
-            return await ctx.send(f'Guild prefix updated to `{to_change}`')
+            value = stdout.getvalue()
+
+            embed.title = 'Eval Result'
+            embed.colour = discord.Colour.green()
+            desc = ''
+
+            if ret is None:
+                if value:
+                    desc = value
+            else:
+                self._last_result = ret
+                desc = f'{value}{ret}'
+
+            return await ctx.send(embed=self.embed_split(
+                embed,
+                desc,
+                discord.Colour.green(),
+                title='Eval Result'
+            ))
 
 
 def setup(bot):

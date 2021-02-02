@@ -1,6 +1,7 @@
 from discord.ext import commands
 from datetime import datetime, timedelta
 from utils.functions import create_default_embed
+from config import PREFIX as BOT_PREFIX
 
 
 def time_to_readable(delta_uptime: timedelta):
@@ -37,6 +38,33 @@ class Utils(commands.Cog):
             embed.add_field(name='Ready Uptime',
                             value=f'{time_to_readable(datetime.utcnow() - self.bot.ready_time)}')
         return await ctx.send(embed=embed)
+
+    @commands.command(name='prefix')
+    @commands.check_any(commands.has_guild_permissions(manage_guild=True), commands.is_owner())
+    @commands.guild_only()
+    async def change_prefix(self, ctx, to_change: str = None):
+        """
+        Changes the prefix for the current guild.
+        Can only be ran in a guild. If no prefix is specified, will show the current prefix.
+        Requires Manage Server permissions.
+        """
+        guild_id = str(ctx.guild.id)
+        if to_change is None:
+            if guild_id in self.bot.prefixes:
+                prefix = self.bot.prefixes.get(guild_id, BOT_PREFIX)
+            else:
+                dbsearch = await self.bot.mdb['prefixes'].find_one({'guild_id': guild_id})
+                if dbsearch is not None:
+                    prefix = dbsearch.get('prefix', BOT_PREFIX)
+                else:
+                    prefix = BOT_PREFIX
+                self.bot.prefixes[guild_id] = prefix
+            return await ctx.send(f'No prefix specified to change. Current Prefix: `{prefix}`')
+        else:
+            await ctx.bot.mdb['prefixes'].update_one({'guild_id': guild_id},
+                                                     {'$set': {'prefix': to_change}}, upsert=True)
+            ctx.bot.prefixes[guild_id] = to_change
+            return await ctx.send(f'Guild prefix updated to `{to_change}`')
 
 
 def setup(bot):
