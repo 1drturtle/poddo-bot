@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 COGS = {
     'jishaku', 'cogs.admin', 'cogs.utils', 'cogs.code',
-    'cogs.rpg_commands',
+    'cogs.rpg.cog',
     'cogs.help'
 }
 
