@@ -3,7 +3,7 @@ from discord.ext.commands.cooldowns import BucketType
 from utils.functions import create_default_embed
 import discord
 from random import randint
-from cogs.rpg.models.character import Character
+from cogs.rpg.models.character import Character, xp_for_level
 import math
 
 
@@ -64,75 +64,29 @@ class RPG(commands.Cog):
     # Work Commands (Cooldowns!)
     # --------------------------
 
-    @rpg.command(name='mine')
-    @commands.cooldown(1, 300, BucketType.user)
-    async def rpg_mine(self, ctx):
-        """
-        Mine ores for gold!
-
-        Gives gold and a small amount of XP. On a 5 minute cooldown.
-        """
-        char = await ctx.get_character()
-        if not char:
-            return await ctx.send(embed=no_character_embed(ctx))
-
-        GOLD_SCALE_VALUE = 0.03
-        XP_SCALE_VALUE = 0.01
-
-        # ideally we want to scale the gold with level
-        # current scale is 3% per level
-        gold_lower_bound = math.floor(30 * (1 + (char.level * GOLD_SCALE_VALUE)))
-        gold_upper_bound = math.floor(60 * (1 + (char.level * GOLD_SCALE_VALUE)))
-        gold = randint(gold_lower_bound, gold_upper_bound)
-        char.gold += gold
-
-        # we don't want much XP from mining
-        # current scale is 1% per level
-        xp_lower_bound = math.floor(10 * (1 + (char.level * XP_SCALE_VALUE)))
-        xp_upper_bound = math.floor(30 * (1 + (char.level * XP_SCALE_VALUE)))
-        xp = randint(xp_lower_bound, xp_upper_bound)
-        # store our mod result
-        xp_result = char.mod_xp(xp)
-
-        embed = create_default_embed(ctx)
-        embed.title = f'{char.name} goes Mining!'
-        embed.add_field(name='Gold', value=f'{char.gold} (+{gold})')
-        embed.add_field(name='XP', value=f'{char.xp} (+{xp})')
-        # did we level?
-        if xp_result:
-            embed.add_field(name='Level Up!', value=f'You are now level {char.level}!')
-
-        # save & exit
-        await char.commit(self.cdb)
-        return await ctx.send(embed=embed)
-
     @rpg.command(name='fish')
-    @commands.cooldown(1, 180, BucketType.user)
+    @commands.cooldown(1, 300, BucketType.user)
     async def rpg_fish(self, ctx):
         """
-        Go to the ocean and fish
+        Fish for XP
 
-        Gives XP and a small amount of gold. On a 3 minute cooldown.
+        Gives XP and a little bit of gold, 5 minute cooldown.
         """
         char = await ctx.get_character()
         if not char:
             return await ctx.send(embed=no_character_embed(ctx))
 
-        GOLD_SCALE_VALUE = 0.01
-        XP_SCALE_VALUE = 0.03
-
-        # current scale is 3% per level
-        gold_lower_bound = math.floor(10 * (1 + (char.level * GOLD_SCALE_VALUE)))
-        gold_upper_bound = math.floor(20 * (1 + (char.level * GOLD_SCALE_VALUE)))
-        gold = randint(gold_lower_bound, gold_upper_bound)
-        char.gold += gold
-
-        # current scale is 1% per level
-        xp_lower_bound = math.floor(30 * (1 + (char.level * XP_SCALE_VALUE)))
-        xp_upper_bound = math.floor(60 * (1 + (char.level * XP_SCALE_VALUE)))
-        xp = randint(xp_lower_bound, xp_upper_bound)
-        # store our mod result
+        # XP should be between 3-5% of xp between current and next level
+        next_xp = xp_for_level(char.level + 1) - xp_for_level(char.level)
+        lower = math.floor(next_xp * 0.03)
+        upper = math.floor(next_xp * 0.05)
+        xp = randint(lower, upper)
         xp_result = char.mod_xp(xp)
+
+        # Gold will be 10 +/- (15 * 5% of current level)
+        bound = 15 + math.floor((char.level * 0.05))
+        gold = randint(max(0, 10-bound), 10+bound)
+        char.gold += gold
 
         embed = create_default_embed(ctx)
         embed.title = f'{char.name} goes Fishing!'

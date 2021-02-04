@@ -64,7 +64,7 @@ class Character:
     def xp(self):
         return self._xp
 
-    def mod_xp(self, value):
+    def mod_xp(self, value: int):
         """
         Function for modifying XP. Returns True if the character levels up otherwise returns None.
         Returns False if the character goes down a level
