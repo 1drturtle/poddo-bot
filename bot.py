@@ -23,7 +23,7 @@ logging.getLogger('discord.client').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
 COGS = {
-    'jishaku', 'cogs.admin', 'cogs.utils', 'cogs.code',
+    'jishaku', 'cogs.admin', 'cogs.utils', 'cogs.code', 'cogs.error_handling',
     'cogs.rpg.cog',
     'cogs.help'
 }

@@ -25,6 +25,10 @@ class Character:
         self.gold = gold
 
     @classmethod
+    def new(cls, name, owner_id):
+        return cls(name, owner_id)
+
+    @classmethod
     def from_dict(cls, data):
         return cls(
                 data['name'], data['owner_id'],
@@ -51,7 +55,6 @@ class Character:
             {'$set': self.to_dict()},
             upsert=True
         )
-
 
     @property
     def level(self):
