@@ -1,6 +1,6 @@
 from discord.ext import commands, menus
+
 from utils.functions import create_default_embed
-import discord
 
 
 class HelpCogMenu(menus.ListPageSource):
@@ -50,8 +50,7 @@ def generate_command_names(command_list, short_doc=False):
     for command in command_list:
         if command.hidden:
             continue
-        parent = (command.full_parent_name + " ") if command.full_parent_name else ""
-        name = f'`{parent}{command.name}`'
+        name = f'`{command.qualified_name}`'
         if isinstance(command, commands.Group) and len(command.commands):
             name = '__' + name + '__'
         if short_doc:

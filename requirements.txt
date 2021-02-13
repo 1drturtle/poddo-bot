@@ -3,6 +3,9 @@ discord.py
 # Menus
 git+https://github.com/Rapptz/discord-ext-menus
 
+# Other
+pendulum
+
 # Database
 motor
 dnspython

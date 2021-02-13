@@ -11,3 +11,5 @@ services:
     environment:
       ENVIRONMENT: testing
       JISHAKU_NO_UNDERSCORE: "true"
+    volumes:
+    - .:/podda
