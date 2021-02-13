@@ -1,8 +1,6 @@
 import datetime
 import logging
-import sys
 
-import discord
 import motor.motor_asyncio
 from discord.ext import commands
 
@@ -10,15 +8,6 @@ import config
 from utils.context import PoddoContext
 from utils.functions import *
 
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('[{asctime}] [{levelname}] | {name}: {message}', style='{'))
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
-
-# Make discord logs a bit quieter
-logging.getLogger('discord.gateway').setLevel(logging.WARNING)
-logging.getLogger('discord.client').setLevel(logging.WARNING)
 
 log = logging.getLogger(__name__)
 
@@ -72,64 +61,43 @@ class PoddoBot(commands.Bot):
     def uptime(self):
         return datetime.datetime.utcnow() - self.launch_time
 
+    # ======= Events =======
+
+    async def on_ready(self):
+        self.ready_time = datetime.datetime.utcnow()
+
+        ready_message = f'\n{"-" * 25}\n' \
+                        f'Bot Ready!\n' \
+                        f'Logged in as {self.user.name} (ID: {self.user.id})\n' \
+                        f'Current Prefix: {config.PREFIX}\n' \
+                        f'{"-" * 25}'
+        log.info(ready_message)
+
+    async def on_message(self, message):
+        if message.author.bot:
+            return None
+
+        if not self.is_ready():
+            return None
+
+        context = await self.get_context(message)
+        if context.command is not None:
+            return await self.invoke(context)
+
+    async def on_command(self, ctx):
+        if ctx.command.name in ['py', 'pyi', 'sh']:
+            return
+
+        await try_delete(ctx.message)
+
+    async def on_guild_join(self, joined):
+        # Check to make sure we aren't approaching guild limit.
+        if len(self.guilds) > 90:
+            if joined.system_channel:
+                await joined.system_channel.send('Until I am verified, I cannot join any more servers. '
+                                                 'Please contact my developer if you see this message.')
+            await joined.leave()
+
     # ---- Overrides ----
     async def get_context(self, message, *, cls=PoddoContext):
         return await super().get_context(message, cls=cls)
-
-
-intents = discord.Intents(guilds=True, members=True, messages=True, reactions=True)
-
-description = 'Dr Turtle\'s bot.'
-
-bot = PoddoBot(desc=description, intents=intents, allowed_mentions=discord.AllowedMentions.none())
-
-
-@bot.event
-async def on_ready():
-
-    bot.ready_time = datetime.datetime.utcnow()
-
-    ready_message = f'\n{"-"*25}\n' \
-                    f'Bot Ready!\n' \
-                    f'Logged in as {bot.user.name} (ID: {bot.user.id})\n' \
-                    f'Current Prefix: {config.PREFIX}\n' \
-                    f'{"-"*25}'
-    log.info(ready_message)
-
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return None
-
-    if not bot.is_ready():
-        return None
-
-    context = await bot.get_context(message)
-    if context.command is not None:
-        return await bot.invoke(context)
-
-
-@bot.event
-async def on_command(ctx):
-    if ctx.command.name in ['py', 'pyi', 'sh']:
-        return
-
-    await try_delete(ctx.message)
-
-
-@bot.event
-async def on_guild_join(joined):
-    # Check to make sure we aren't approaching guild limit.
-    if len(bot.guilds) > 90:
-        if joined.system_channel:
-            await joined.system_channel.send('Until I am verified, I cannot join any more servers. '
-                                             'Please contact my developer if you see this message.')
-        await joined.leave()
-
-
-for cog in COGS:
-    bot.load_extension(cog)
-
-if __name__ == '__main__':
-    bot.run(config.TOKEN)

@@ -10,4 +10,4 @@ RUN pip install -r requirements.txt
 
 ADD . /podda
 
-ENTRYPOINT ["python", "bot.py"]
+ENTRYPOINT ["python", "main.py"]
