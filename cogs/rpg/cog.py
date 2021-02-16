@@ -2,9 +2,8 @@ from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
 from utils.functions import create_default_embed, yes_or_no
 import discord
-from random import randint
-from cogs.rpg.models.character import Character, xp_for_level
-import math
+from cogs.rpg.models.character import Character
+import random
 
 
 def no_character_embed(ctx, title=None, desc=None):
@@ -14,11 +13,30 @@ def no_character_embed(ctx, title=None, desc=None):
     return embed
 
 
+RARITY_DENOMINATOR = 100
+
+
+def get_random_item(possibles):
+    rand = random.random()
+    cumulative_probability = 0
+    for item in possibles:
+        cumulative_probability += item['rarity']/RARITY_DENOMINATOR
+        if rand <= cumulative_probability:
+            return item
+
+
 class RPG(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         # character database
         self.cdb = bot.mdb['rpg-characters-db']
+        # fish db
+        self.fish_db = bot.mdb['rpg-fish-db']
+        # statistics db
+        self.stats_db = bot.mdb['rpg-stats-db']
+
+    async def update_stat(self, _id: int, stat: str):
+        await self.stats_db.update_one({'_id': _id}, {'$inc': {stat: 1}}, upsert=True)
 
     @commands.group(name='rpg', invoke_without_command=True, aliases=['game', 'g'])
     async def rpg(self, ctx):
@@ -44,10 +62,13 @@ class RPG(commands.Cog):
                 desc='You cannot create a character, as you already have one.'
             )
             )
+
+        # Prompt the User for the Character's Name.
         char_name = await ctx.prompt(
             title='What should your character be called?',
             description='Enter your character\'s name!'
         )
+        # Error if we don't get a name or if the name if invalid.
         if char_name is None:
             return await ctx.send('Character name prompt timed out, re-run the command to try again.',
                                   delete_after=15)
@@ -55,6 +76,8 @@ class RPG(commands.Cog):
             return await ctx.send(
                 'Invalid character name! Only letters and spaces are allowed (no symbols or numbers).',
                 delete_after=15)
+
+        # Create a default character.
         char = Character.new(char_name, owner_id=ctx.author.id)
         await char.commit(self.cdb)
         embed = create_default_embed(ctx)
@@ -84,47 +107,47 @@ class RPG(commands.Cog):
                                                          description=f'Say goodbye to {char.name}!'))
 
     # --------------------------
-    # Work Commands
+    # --    Work Commands     --
     # --------------------------
-
     @rpg.command(name='fish')
     @commands.cooldown(1, 300, BucketType.user)
     async def rpg_fish(self, ctx):
-        """
-        Fish for XP
-
-        Gives XP and a little bit of gold, 5 minute cooldown.
-        """
-        char = await ctx.get_character()
-        if not char:
+        """Goes Fishing! Grants XP based on the tier of fish and the rarity of fish."""
+        char: Character = await ctx.get_character()
+        if char is None:
             return await ctx.send(embed=no_character_embed(ctx))
 
-        # XP should be between 3-5% of xp between current and next level
-        next_xp = xp_for_level(char.level + 1) - xp_for_level(char.level)
-        lower = math.floor(next_xp * 0.03)
-        upper = math.floor(next_xp * 0.05)
-        xp = randint(lower, upper)
-        xp_result = char.mod_xp(xp)
+        # update stats
+        await self.update_stat(ctx.author.id, 'fishing')
 
-        # Gold will be 10 +/- (15 * 5% of current level)
-        bound = 15 + math.floor((char.level * 0.05))
-        gold = randint(max(0, 10 - bound), 10 + bound)
-        char.gold += gold
+        # get the fishies
+        tier = char.get_stat('fishing') or 1
+        fishies = await self.fish_db.find({'tier': tier}).to_list(length=None)
+
+        # which fishy for us?
+        fishy = get_random_item(fishies)
+
+        # xp is a function of rarity and character level
+        xp = (100 - fishy['rarity']) * (1 + round(char.level/100, 2))
+        xp_result = char.mod_xp(xp)
+        level_str = ''
+        if xp_result and xp_result is not None:
+            level_str = f'\nLevel up! You are now level {char.level}.'
+        elif not xp_result and xp_result is not None:
+            level_str = f'\nLevel Down... You are now level {char.level}.'
+
+        await char.commit(self.cdb)
 
         embed = create_default_embed(ctx)
         embed.title = f'{char.name} goes Fishing!'
-        embed.add_field(name='Gold', value=f'{char.gold} (+{gold})')
-        embed.add_field(name='XP', value=f'{char.xp} (+{xp})')
-        # did we level?
-        if xp_result:
-            embed.add_field(name='Level Up!', value=f'You are now level {char.level}!')
+        embed.description = f'{char.name} goes fishing and catches a {fishy["name"]}!'
+        embed.add_field(name='XP', value=f'`{(100 - fishy["rarity"])} * {(1 + round(char.level/100, 2))}` = `{xp:+}`')
+        embed.add_field(name='Level', value=f'{char.level_str()}{level_str}')
 
-        # save & exit
-        await char.commit(self.cdb)
         return await ctx.send(embed=embed)
 
     # --------------------------
-    # Admin Commands
+    # ---   Admin Commands   ---
     # --------------------------
     @commands.group(name='dev', invoke_without_subcommand=True, hidden=True)
     async def dev(self, ctx):
