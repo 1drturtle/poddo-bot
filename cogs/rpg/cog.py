@@ -4,6 +4,7 @@ from utils.functions import create_default_embed, yes_or_no
 import discord
 from cogs.rpg.models.character import Character
 import random
+import typing
 
 
 def no_character_embed(ctx, title=None, desc=None):
@@ -128,7 +129,7 @@ class RPG(commands.Cog):
         fishy = get_random_item(fishies)
 
         # xp is a function of rarity and character level
-        xp = (100 - fishy['rarity']) * (1 + round(char.level/100, 2))
+        xp = (fish_xp := ((100 - fishy['rarity'])*3)) * (level_xp := (1 + round(char.level/50, 2)))
         xp_result = char.mod_xp(xp)
         level_str = ''
         if xp_result and xp_result is not None:
@@ -141,7 +142,7 @@ class RPG(commands.Cog):
         embed = create_default_embed(ctx)
         embed.title = f'{char.name} goes Fishing!'
         embed.description = f'{char.name} goes fishing and catches a {fishy["name"]}!'
-        embed.add_field(name='XP', value=f'`{(100 - fishy["rarity"])} * {(1 + round(char.level/100, 2))}` = `{xp:+}`')
+        embed.add_field(name='XP', value=f'`{fish_xp} * {level_xp}` = `{round(xp, 2):+}`')
         embed.add_field(name='Level', value=f'{char.level_str()}{level_str}')
 
         return await ctx.send(embed=embed)
@@ -149,10 +150,44 @@ class RPG(commands.Cog):
     # --------------------------
     # ---   Admin Commands   ---
     # --------------------------
+
+    async def char_from_uid(self, uid: int) -> typing.Optional[Character]:
+        """Fetches a character from someone's User ID."""
+        data = self.cdb.find_one({'owner_id': uid})
+        if data is None:
+            return None
+
+        return Character.from_dict(data)
+
     @commands.group(name='dev', invoke_without_subcommand=True, hidden=True)
     async def dev(self, ctx):
         """Commands for the Developer."""
         pass
+
+    @dev.command(name='modxp')
+    async def dev_modxp(self, ctx, amount: float, user: typing.Union[discord.Member, discord.User] = None):
+        """Modifies a Character based on Member."""
+        if user:
+            who_char = await self.char_from_uid(user.id)
+        else:
+            who_char = await ctx.get_character()
+        if who_char is None:
+            return await ctx.send(no_character_embed(ctx, title=f'{user.name} has no character!',
+                                                     desc=f'Cannot modify an existing character.'))
+
+        xp_result = who_char.mod_xp(amount)
+        embed = create_default_embed(ctx)
+        embed.title = f'{who_char.name} is modified!'
+        embed.description = who_char.level_str()
+        embed.add_field(name='XP', value=f'`{amount:+}`')
+        if xp_result is not None:
+            if xp_result:
+                embed.add_field(name='Level Up!', value=f'{who_char.name} is now level {who_char.level}')
+            else:
+                embed.add_field(name='Level Down', value=f'{who_char.name} is now level {who_char.level}')
+        await who_char.commit(self.cdb)
+
+        return await ctx.send(embed=embed)
 
 
 def setup(bot):

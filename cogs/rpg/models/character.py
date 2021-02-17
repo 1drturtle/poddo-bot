@@ -107,7 +107,6 @@ class Character:
         """
 
         self._xp = self._xp + amount
-        self._xp = round(self._xp, 3)
         out = None
         # level up every time our current XP is greater than the next amount.
         while self._xp > (next_xp := xp_for_level(self._level + 1)):
@@ -119,4 +118,5 @@ class Character:
             self._xp += xp_for_level(self._level - 1)
             self._level -= 1
             out = False
+        self._xp = round(self._xp, 3)
         return out
